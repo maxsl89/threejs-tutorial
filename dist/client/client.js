@@ -1,5 +1,7 @@
 import * as THREE from "/build/three.module.js";
 import { OrbitControls } from "/jsm/controls/OrbitControls";
+import Stats from "/jsm/libs/stats.module";
+import { GUI } from "/jsm/libs/dat.gui.module";
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer();
@@ -22,14 +24,26 @@ function onWindowResize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     render();
 }
-// var animate = function () {
-//     requestAnimationFrame(animate)
-//     cube.rotation.x += 0.01;
-//     cube.rotation.y += 0.01;
-//     renderer.render(scene, camera)
-// };
-function render() {
+const stats = Stats();
+document.body.appendChild(stats.dom);
+const gui = new GUI();
+const cubeFolder = gui.addFolder("Cube");
+cubeFolder.add(cube.rotation, "x", 0, Math.PI * 2);
+cubeFolder.add(cube.rotation, "y", 0, Math.PI * 2);
+cubeFolder.add(cube.rotation, "z", 0, Math.PI * 2);
+const cameraFolder = gui.addFolder("Camera");
+cameraFolder.add(camera.position, "z", 0, 10);
+var animate = function () {
+    requestAnimationFrame(animate);
+    // cube.rotation.x += 0.01;
+    // cube.rotation.y += 0.01;
     renderer.render(scene, camera);
+    stats.update();
+};
+function render() {
+    stats.begin();
+    renderer.render(scene, camera);
+    stats.end();
 }
-render();
-//animate();
+//render();
+animate();
