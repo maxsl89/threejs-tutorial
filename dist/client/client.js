@@ -1,34 +1,138 @@
-import * as THREE from "/build/three.module.js";
-import { OrbitControls } from "/jsm/controls/OrbitControls";
-import Stats from "/jsm/libs/stats.module";
-import { GUI } from "/jsm/libs/dat.gui.module";
+import * as THREE from '/build/three.module.js';
+import { PointerLockControls } from '/jsm/controls/PointerLockControls';
+import Stats from '/jsm/libs/stats.module';
 const scene = new THREE.Scene();
-const axesHelper = new THREE.AxesHelper(5);
-scene.add(axesHelper);
+var light = new THREE.AmbientLight();
+scene.add(light);
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
-const controls = new OrbitControls(camera, renderer.domElement);
-//controls.addEventListener('change', render)
-const boxGeometry = new THREE.BoxGeometry();
-const sphereGeometry = new THREE.SphereGeometry();
-const icosahedronGeometry = new THREE.IcosahedronGeometry();
-//console.dir(geometry)
-const material = new THREE.MeshBasicMaterial({
-    color: 0x00ff00,
-    wireframe: true,
+const menuPanel = document.getElementById('menuPanel');
+const startButton = document.getElementById('startButton');
+startButton.addEventListener('click', function () {
+    controls.lock();
+}, false);
+const controls = new PointerLockControls(camera, renderer.domElement);
+//controls.addEventListener('change', () => console.log("Controls Change"))
+controls.addEventListener('lock', () => menuPanel.style.display = 'none');
+controls.addEventListener('unlock', () => menuPanel.style.display = 'block');
+const planeGeometry = new THREE.PlaneGeometry(100, 100, 50, 50);
+const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+const plane = new THREE.Mesh(planeGeometry, material);
+plane.rotateX(-Math.PI / 2);
+scene.add(plane);
+let cubes = new Array();
+for (let i = 0; i < 100; i++) {
+    const geo = new THREE.BoxGeometry(Math.random() * 4, Math.random() * 16, Math.random() * 4);
+    const mat = new THREE.MeshBasicMaterial({ wireframe: true });
+    switch (i % 3) {
+        case 0:
+            mat.color = new THREE.Color(0xff0000);
+            break;
+        case 1:
+            mat.color = new THREE.Color(0xffff00);
+            break;
+        case 2:
+            mat.color = new THREE.Color(0x0000ff);
+            break;
+    }
+    const cube = new THREE.Mesh(geo, mat);
+    cubes.push(cube);
+}
+cubes.forEach((c) => {
+    c.position.x = (Math.random() * 100) - 50;
+    c.position.z = (Math.random() * 100) - 50;
+    c.geometry.computeBoundingBox();
+    c.position.y = (c.geometry.boundingBox.max.y - c.geometry.boundingBox.min.y) / 2;
+    scene.add(c);
 });
-const cube = new THREE.Mesh(boxGeometry, material);
-cube.position.x = 5;
-scene.add(cube);
-const sphere = new THREE.Mesh(sphereGeometry, material);
-sphere.position.x = -5;
-scene.add(sphere);
-const icosahedron = new THREE.Mesh(icosahedronGeometry, material);
-scene.add(icosahedron);
+camera.position.y = 1;
 camera.position.z = 2;
-window.addEventListener("resize", onWindowResize, false);
+let acts = [];
+const characterSpeed = 0.15;
+const onKeyDown = function (event) {
+    switch (event.keyCode) {
+        case 87: // w
+            //controls.moveForward(.25);
+            if (!acts.some(act => act.actionId === 1)) {
+                console.log("Добавляю экшн вперед");
+                acts.push({ actionId: 1, action: controls.moveForward, value: characterSpeed });
+            }
+            break;
+        case 65: // a
+            //controls.moveRight(-.25);
+            if (!acts.some(act => act.actionId === 2)) {
+                console.log("Добавляю экшн влево");
+                acts.push({ actionId: 2, action: controls.moveRight, value: -1 * characterSpeed });
+            }
+            break;
+        case 83: // s
+            //controls.moveForward(-.25);
+            if (!acts.some(act => act.actionId === 3)) {
+                console.log("Добавляю экшн назад");
+                acts.push({ actionId: 3, action: controls.moveForward, value: -1 * characterSpeed });
+            }
+            break;
+        case 68: // d
+            //controls.moveRight(.25);  
+            if (!acts.some(act => act.actionId === 4)) {
+                console.log("Добавляю экшн вправо");
+                acts.push({ actionId: 4, action: controls.moveRight, value: characterSpeed });
+            }
+            break;
+    }
+};
+const onKeyUp = function (event) {
+    switch (event.keyCode) {
+        case 87: // w
+            //controls.moveForward(.25);
+            if (acts.some(act => act.actionId === 1)) {
+                console.log("Удаляю экшн вперед");
+                acts = acts.filter(act => act.actionId !== 1);
+            }
+            break;
+        case 65: // a
+            //controls.moveRight(-.25);
+            if (acts.some(act => act.actionId === 2)) {
+                console.log("Удаляю экшн влево");
+                acts = acts.filter(act => act.actionId !== 2);
+            }
+            break;
+        case 83: // s
+            //controls.moveForward(-.25);
+            if (acts.some(act => act.actionId === 3)) {
+                console.log("Удаляю экшн назад");
+                acts = acts.filter(act => act.actionId !== 3);
+            }
+            break;
+        case 68: // d
+            //controls.moveRight(.25);  
+            if (acts.some(act => act.actionId === 4)) {
+                console.log("Удаляю экшн вправо");
+                acts = acts.filter(act => act.actionId !== 4);
+            }
+            break;
+    }
+};
+const onWheel = (event) => {
+    if (event.deltaY === -100) {
+        if (camera.position.y >= 1) {
+            camera.position.y = camera.position.y - 0.1;
+        }
+    }
+    else if (event.deltaY === 100) {
+        if (camera.position.y <= 3) {
+            camera.position.y = camera.position.y + 0.1;
+        }
+    }
+};
+const backGroundTexture = new THREE.CubeTextureLoader().load(["img/px_eso0932a.jpg", "img/nx_eso0932a.jpg", "img/py_eso0932a.jpg", "img/ny_eso0932a.jpg", "img/pz_eso0932a.jpg", "img/nz_eso0932a.jpg"]);
+scene.background = backGroundTexture;
+document.addEventListener('keydown', onKeyDown, false);
+document.addEventListener('keyup', onKeyUp, false);
+document.addEventListener('wheel', onWheel, false);
+window.addEventListener('resize', onWindowResize, false);
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -37,123 +141,15 @@ function onWindowResize() {
 }
 const stats = Stats();
 document.body.appendChild(stats.dom);
-const gui = new GUI();
-const cubeFolder = gui.addFolder("Cube");
-const cubeRotationFolder = cubeFolder.addFolder("Rotation");
-cubeRotationFolder.add(cube.rotation, "x", 0, Math.PI * 2, 0.01);
-cubeRotationFolder.add(cube.rotation, "y", 0, Math.PI * 2, 0.01);
-cubeRotationFolder.add(cube.rotation, "z", 0, Math.PI * 2, 0.01);
-const cubePositionFolder = cubeFolder.addFolder("Position");
-cubePositionFolder.add(cube.position, "x", -10, 10);
-cubePositionFolder.add(cube.position, "y", -10, 10);
-cubePositionFolder.add(cube.position, "z", -10, 10);
-const cubeScaleFolder = cubeFolder.addFolder("Scale");
-cubeScaleFolder
-    .add(cube.scale, "x", -5, 5, 0.1)
-    .onFinishChange(() => console.dir(cube.geometry));
-cubeScaleFolder.add(cube.scale, "y", -5, 5, 0.1);
-cubeScaleFolder.add(cube.scale, "z", -5, 5, 0.1);
-cubeFolder.add(cube, "visible", true);
-cubeFolder.open();
-var cubeData = {
-    width: 1,
-    height: 1,
-    depth: 1,
-    widthSegments: 1,
-    heightSegments: 1,
-    depthSegments: 1,
-};
-const cubePropertiesFolder = cubeFolder.addFolder("Properties");
-cubePropertiesFolder
-    .add(cubeData, "width", 1, 30)
-    .onChange(regenerateBoxGeometry)
-    .onFinishChange(() => console.dir(cube.geometry));
-cubePropertiesFolder
-    .add(cubeData, "height", 1, 30)
-    .onChange(regenerateBoxGeometry);
-cubePropertiesFolder
-    .add(cubeData, "depth", 1, 30)
-    .onChange(regenerateBoxGeometry);
-cubePropertiesFolder
-    .add(cubeData, "widthSegments", 1, 30)
-    .onChange(regenerateBoxGeometry);
-cubePropertiesFolder
-    .add(cubeData, "heightSegments", 1, 30)
-    .onChange(regenerateBoxGeometry);
-cubePropertiesFolder
-    .add(cubeData, "depthSegments", 1, 30)
-    .onChange(regenerateBoxGeometry);
-function regenerateBoxGeometry() {
-    let newGeometry = new THREE.BoxGeometry(cubeData.width, cubeData.height, cubeData.depth, cubeData.widthSegments, cubeData.heightSegments, cubeData.depthSegments);
-    cube.geometry.dispose();
-    cube.geometry = newGeometry;
-}
-var sphereData = {
-    radius: 1,
-    widthSegments: 8,
-    heightSegments: 6,
-    phiStart: 0,
-    phiLength: Math.PI * 2,
-    thetaStart: 0,
-    thetaLength: Math.PI,
-};
-const sphereFolder = gui.addFolder("Sphere");
-const spherePropertiesFolder = sphereFolder.addFolder("Properties");
-spherePropertiesFolder
-    .add(sphereData, "radius", 0.1, 30)
-    .onChange(regenerateSphereGeometry);
-spherePropertiesFolder
-    .add(sphereData, "widthSegments", 1, 32)
-    .onChange(regenerateSphereGeometry);
-spherePropertiesFolder
-    .add(sphereData, "heightSegments", 1, 16)
-    .onChange(regenerateSphereGeometry);
-spherePropertiesFolder
-    .add(sphereData, "phiStart", 0, Math.PI * 2)
-    .onChange(regenerateSphereGeometry);
-spherePropertiesFolder
-    .add(sphereData, "phiLength", 0, Math.PI * 2)
-    .onChange(regenerateSphereGeometry);
-spherePropertiesFolder
-    .add(sphereData, "thetaStart", 0, Math.PI)
-    .onChange(regenerateSphereGeometry);
-spherePropertiesFolder
-    .add(sphereData, "thetaLength", 0, Math.PI)
-    .onChange(regenerateSphereGeometry);
-function regenerateSphereGeometry() {
-    let newGeometry = new THREE.SphereGeometry(sphereData.radius, sphereData.widthSegments, sphereData.heightSegments, sphereData.phiStart, sphereData.phiLength, sphereData.thetaStart, sphereData.thetaLength);
-    sphere.geometry.dispose();
-    sphere.geometry = newGeometry;
-}
-var icosahedronData = {
-    radius: 1,
-    detail: 0,
-};
-const icosahedronFolder = gui.addFolder("Icosahedron");
-const icosahedronPropertiesFolder = icosahedronFolder.addFolder("Properties");
-icosahedronPropertiesFolder
-    .add(icosahedronData, "radius", 0.1, 10)
-    .onChange(regenerateIcosahedronGeometry);
-icosahedronPropertiesFolder
-    .add(icosahedronData, "detail", 0, 5)
-    .step(1)
-    .onChange(regenerateIcosahedronGeometry);
-function regenerateIcosahedronGeometry() {
-    let newGeometry = new THREE.IcosahedronGeometry(icosahedronData.radius, icosahedronData.detail);
-    icosahedron.geometry.dispose();
-    icosahedron.geometry = newGeometry;
-}
 var animate = function () {
     requestAnimationFrame(animate);
-    //cube.rotation.x += 0.01;
-    //cube.rotation.y += 0.01;
+    acts.forEach(act => act.action(act.value));
+    //controls.update()
+    //controls.moveForward(.25);
     render();
-    document.getElementById("debug1").innerText =
-        "Matrix\n" + cube.matrix.elements.toString().replace(/,/g, "\n");
     stats.update();
 };
 function render() {
     renderer.render(scene, camera);
 }
-//render()
 animate();
