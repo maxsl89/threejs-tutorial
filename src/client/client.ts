@@ -1,165 +1,262 @@
-import * as THREE from '/build/three.module.js';
-import { PointerLockControls } from '/jsm/controls/PointerLockControls';
-import Stats from '/jsm/libs/stats.module';
-const scene = new THREE.Scene();
-var light = new THREE.AmbientLight();
-scene.add(light);
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer();
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
-const menuPanel = document.getElementById('menuPanel');
-const startButton = document.getElementById('startButton');
-startButton.addEventListener('click', function () {
-    controls.lock();
-}, false);
-const controls = new PointerLockControls(camera, renderer.domElement);
-//controls.addEventListener('change', () => console.log("Controls Change"))
-controls.addEventListener('lock', () => menuPanel.style.display = 'none');
-controls.addEventListener('unlock', () => menuPanel.style.display = 'block');
-const planeGeometry = new THREE.PlaneGeometry(100, 100, 50, 50);
-const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
-const plane = new THREE.Mesh(planeGeometry, material);
-plane.rotateX(-Math.PI / 2);
-scene.add(plane);
-let cubes = new Array();
-for (let i = 0; i < 100; i++) {
-    const geo = new THREE.BoxGeometry(Math.random() * 4, Math.random() * 16, Math.random() * 4);
-    const mat = new THREE.MeshBasicMaterial({ wireframe: true });
-    switch (i % 3) {
-        case 0:
-            mat.color = new THREE.Color(0xff0000);
-            break;
-        case 1:
-            mat.color = new THREE.Color(0xffff00);
-            break;
-        case 2:
-            mat.color = new THREE.Color(0x0000ff);
-            break;
+import * as THREE from '/build/three.module.js'
+import { OrbitControls } from '/jsm/controls/OrbitControls'
+import { GLTFLoader } from '/jsm/loaders/GLTFLoader'
+import Stats from '/jsm/libs/stats.module'
+import { GUI } from '/jsm/libs/dat.gui.module'
+import { TWEEN } from '/jsm/libs/tween.module.min'
+
+const scene: THREE.Scene = new THREE.Scene()
+const axesHelper = new THREE.AxesHelper(5)
+scene.add(axesHelper)
+
+var light1 = new THREE.SpotLight();
+light1.position.set(2.5, 5, 2.5)
+light1.angle = Math.PI / 8
+light1.penumbra = 0.5
+light1.castShadow = true;
+light1.shadow.mapSize.width = 1024;
+light1.shadow.mapSize.height = 1024;
+light1.shadow.camera.near = 0.5;
+light1.shadow.camera.far = 20
+scene.add(light1);
+
+var light2 = new THREE.SpotLight();
+light2.position.set(-2.5, 5, 2.5)
+light2.angle = Math.PI / 8
+light2.penumbra = 0.5
+light2.castShadow = true;
+light2.shadow.mapSize.width = 1024;
+light2.shadow.mapSize.height = 1024;
+light2.shadow.camera.near = 0.5;
+light2.shadow.camera.far = 20
+scene.add(light2);
+
+const camera: THREE.PerspectiveCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000)
+camera.position.set(0.8, 1.4, 1.0)
+
+const renderer: THREE.WebGLRenderer = new THREE.WebGLRenderer()
+renderer.setSize(window.innerWidth, window.innerHeight)
+renderer.shadowMap.enabled = true
+document.body.appendChild(renderer.domElement)
+
+const controls = new OrbitControls(camera, renderer.domElement)
+controls.screenSpacePanning = true
+controls.target.set(0, 1, 0)
+
+ let sceneMeshes = new Array()
+
+const planeGeometry: THREE.PlaneGeometry = new THREE.PlaneGeometry(25, 25)
+const texture = new THREE.TextureLoader().load("img/grid.png")
+const plane: THREE.Mesh = new THREE.Mesh(planeGeometry, new THREE.MeshPhongMaterial({ map: texture }))
+plane.rotateX(-Math.PI / 2)
+plane.receiveShadow = true
+scene.add(plane)
+ sceneMeshes.push(plane)
+
+let mixer: THREE.AnimationMixer
+let modelReady = false
+let modelMesh: THREE.Object3D
+let animationActions: THREE.AnimationAction[] = new Array()
+let activeAction: THREE.AnimationAction
+let lastAction: THREE.AnimationAction
+const gltfLoader: GLTFLoader = new GLTFLoader();
+
+gltfLoader.load(
+    'models/xbot.glb',
+    (gltf) => {
+
+        gltf.scene.traverse(function (child) {
+            if ((<THREE.Mesh>child).isMesh) {
+               let m = <THREE.Mesh>child
+                 m.castShadow = true
+        m.frustumCulled = false;
+        m.geometry.computeVertexNormals()
+            }
+        })
+
+        mixer = new THREE.AnimationMixer(gltf.scene)
+
+        let animationAction = mixer.clipAction((gltf as any).animations[0])
+        animationActions.push(animationAction)
+        animationsFolder.add(animations, "default")
+        activeAction = animationActions[0]
+
+        scene.add(gltf.scene);
+        modelMesh = gltf.scene
+
+        //add an animation from another file
+        gltfLoader.load('models/runForward.glb',
+            (gltf) => {
+                console.log("loaded runForward");
+                (gltf as any).animations[0].tracks.shift()
+                let animationAction = mixer.clipAction((gltf as any).animations[0]);
+                animationActions.push(animationAction)
+                animationsFolder.add(animations, "runForward")
+
+                //add an animation from another file
+                gltfLoader.load('models/dance.glb',
+                    (gltf) => {
+                        console.log("loaded dance")
+                        let animationAction = mixer.clipAction((gltf as any).animations[0]);
+                        animationActions.push(animationAction)
+                        animationsFolder.add(animations, "dance")
+
+                        //add an animation from another file
+                        gltfLoader.load('models/jump.glb',
+                            (gltf) => {
+                                console.log("loaded jump");
+                                (gltf as any).animations[0].tracks.shift() //delete the specific track that moves the object forward while running
+                                let animationAction = mixer.clipAction((gltf as any).animations[0]);
+                                animationActions.push(animationAction)
+                                animationsFolder.add(animations, "jump")
+
+                                modelReady = true
+                            },
+                            (xhr) => {
+                                console.log((xhr.loaded / xhr.total * 100) + '% loaded')
+                            },
+                            (error) => {
+                                console.log(error);
+                            }
+                        )
+                    },
+                    (xhr) => {
+                        console.log((xhr.loaded / xhr.total * 100) + '% loaded')
+                    },
+                    (error) => {
+                        console.log(error);
+                    }
+                )
+            },
+            (xhr) => {
+                console.log((xhr.loaded / xhr.total * 100) + '% loaded')
+            },
+            (error) => {
+                console.log(error);
+            }
+        )
+    },
+    (xhr) => {
+        console.log((xhr.loaded / xhr.total * 100) + '% loaded')
+    },
+    (error) => {
+        console.log(error);
     }
-    const cube = new THREE.Mesh(geo, mat);
-    cubes.push(cube);
-}
-cubes.forEach((c) => {
-    c.position.x = (Math.random() * 100) - 50;
-    c.position.z = (Math.random() * 100) - 50;
-    c.geometry.computeBoundingBox();
-    c.position.y = (c.geometry.boundingBox.max.y - c.geometry.boundingBox.min.y) / 2;
-    scene.add(c);
-});
-camera.position.y = 1;
-camera.position.z = 2;
+)
 
-let acts = [] 
-const characterSpeed = 0.15
-
-const onKeyDown = function (event) {
-
-
-
-    switch (event.keyCode) {
-        case 87: // w
-            //controls.moveForward(.25);
-            if(!acts.some(act => act.actionId === 1)){
-                console.log("Добавляю экшн вперед")
-                acts.push({actionId:1, action: controls.moveForward, value: characterSpeed})
-            }
-            
-            break;
-        case 65: // a
-            //controls.moveRight(-.25);
-            if(!acts.some(act => act.actionId === 2)){
-                console.log("Добавляю экшн влево")
-            acts.push({actionId:2, action: controls.moveRight, value: -1 * characterSpeed})
-            }
-            break;
-        case 83: // s
-            //controls.moveForward(-.25);
-            if(!acts.some(act => act.actionId === 3)){
-                console.log("Добавляю экшн назад")
-            acts.push({actionId:3, action: controls.moveForward, value: -1 * characterSpeed})
-            }
-            break;
-        case 68: // d
-            //controls.moveRight(.25);  
-            if(!acts.some(act => act.actionId === 4)){  
-                console.log("Добавляю экшн вправо")  
-            acts.push({actionId:4, action: controls.moveRight, value: characterSpeed})
-            }
-            break;
-    }
-};
-
-const onKeyUp = function (event) {
-
-
-
-    switch (event.keyCode) {
-        case 87: // w
-            //controls.moveForward(.25);
-            if(acts.some(act => act.actionId === 1)){
-                console.log("Удаляю экшн вперед")
-                acts = acts.filter( act => act.actionId !==1 )
-            }            
-            break;
-        case 65: // a
-            //controls.moveRight(-.25);
-            if(acts.some(act => act.actionId === 2)){
-                console.log("Удаляю экшн влево")
-                acts = acts.filter( act => act.actionId !==2 )
-            }
-            break;
-        case 83: // s
-            //controls.moveForward(-.25);
-            if(acts.some(act => act.actionId === 3)){
-                console.log("Удаляю экшн назад")
-                acts = acts.filter( act => act.actionId !==3 )
-            }
-            break;
-        case 68: // d
-            //controls.moveRight(.25);  
-            if(acts.some(act => act.actionId === 4)){  
-                console.log("Удаляю экшн вправо")  
-                acts = acts.filter( act => act.actionId !==4 )
-            }
-            break;
-    }
-};
-
-const onWheel = (event) => {
-    if( event.deltaY === -100){
-        if(camera.position.y >= 1){
-            camera.position.y = camera.position.y-0.1
-        }        
-    }else if(event.deltaY === 100){
-        if(camera.position.y <= 3){
-            camera.position.y = camera.position.y+0.1
-        }        
-    }
-}
-const backGroundTexture = new THREE.CubeTextureLoader().load(["img/px_eso0932a.jpg", "img/nx_eso0932a.jpg", "img/py_eso0932a.jpg", "img/ny_eso0932a.jpg", "img/pz_eso0932a.jpg", "img/nz_eso0932a.jpg"]);
-scene.background = backGroundTexture;
-document.addEventListener('keydown', onKeyDown, false);
-document.addEventListener('keyup', onKeyUp, false);
-document.addEventListener('wheel', onWheel, false);
-window.addEventListener('resize', onWindowResize, false);
+window.addEventListener('resize', onWindowResize, false)
 function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    render();
+    camera.aspect = window.innerWidth / window.innerHeight
+    camera.updateProjectionMatrix()
+    renderer.setSize(window.innerWidth, window.innerHeight)
+    render()
 }
-const stats = Stats();
-document.body.appendChild(stats.dom);
+
+ const raycaster = new THREE.Raycaster();
+const targetQuaternion = new THREE.Quaternion()
+
+ renderer.domElement.addEventListener('dblclick', onDoubleClick, false);
+function onDoubleClick(event) {
+    const mouse = {
+        x: (event.clientX / renderer.domElement.clientWidth) * 2 - 1,
+        y: -(event.clientY / renderer.domElement.clientHeight) * 2 + 1
+    }
+    raycaster.setFromCamera(mouse, camera);
+
+    const intersects = raycaster.intersectObjects(sceneMeshes, false);
+
+    if (intersects.length > 0) {
+
+        const p = intersects[0].point
+
+        const distance = modelMesh.position.distanceTo(p);
+        //modelMesh.lookAt(p)
+        const rotationMatrix = new THREE.Matrix4();
+        rotationMatrix.lookAt(p, modelMesh.position, modelMesh.up);
+        targetQuaternion.setFromRotationMatrix(rotationMatrix);
+
+         setAction(animationActions[1])
+
+        TWEEN.removeAll()
+        new TWEEN.Tween(modelMesh.position)
+            .to({
+                x: p.x,
+                y: p.y,
+                z: p.z
+            }, 1000 / 2  *  distance) /// 2 * distance) //walks 2 meters a second * the distance
+            .onUpdate(() => {
+                controls.target.set(
+                    modelMesh.position.x,
+                    modelMesh.position.y + 1,
+                    modelMesh.position.z)
+                light1.target = modelMesh;
+                light2.target = modelMesh;
+            })
+            .start()
+            .onComplete(() => {setAction(animationActions[2])
+                activeAction.clampWhenFinished=true
+            activeAction.loop = THREE.LoopOnce
+            })
+    }
+}
+
+const stats = Stats()
+document.body.appendChild(stats.dom)
+
+var animations = {
+    default: function () {
+        setAction(animationActions[0])
+    },
+    runForward: function () {
+        setAction(animationActions[1])
+    },
+    dance: function () {
+        setAction(animationActions[2])
+    },
+    jump: function () {
+        setAction(animationActions[3])
+    },
+}
+
+const setAction = (toAction: THREE.AnimationAction) => {
+    if (toAction != activeAction) {
+        lastAction = activeAction
+        activeAction = toAction
+        //lastAction.stop()
+        lastAction.fadeOut(.2)
+        activeAction.reset()
+        activeAction.fadeIn(.2)
+        activeAction.play()
+    }
+}
+
+const gui = new GUI()
+const animationsFolder = gui.addFolder("Animations")
+animationsFolder.open()
+
+const clock: THREE.Clock = new THREE.Clock()
+
 var animate = function () {
-    requestAnimationFrame(animate);
-    acts.forEach( act => act.action(act.value) )
-    //controls.update()
-    //controls.moveForward(.25);
-    render();
-    stats.update();
+    requestAnimationFrame(animate)
+
+    controls.update()
+
+    if (modelReady) {
+        mixer.update(clock.getDelta());
+
+        if (!modelMesh.quaternion.equals(targetQuaternion)) {
+            modelMesh.quaternion.rotateTowards(targetQuaternion, clock.getDelta() * 1000);
+        }
+    }
+
+    TWEEN.update();
+
+    render()
+
+    stats.update()
 };
+
 function render() {
-    renderer.render(scene, camera);
+    renderer.render(scene, camera)
 }
 animate();
