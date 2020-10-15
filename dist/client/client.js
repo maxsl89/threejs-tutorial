@@ -1,9 +1,15 @@
-import * as THREE from '/build/three.module.js';
-import { OrbitControls } from '/jsm/controls/OrbitControls';
-import { GLTFLoader } from '/jsm/loaders/GLTFLoader';
-import Stats from '/jsm/libs/stats.module';
-import { GUI } from '/jsm/libs/dat.gui.module';
-import { TWEEN } from '/jsm/libs/tween.module.min';
+import * as THREE from "/build/three.module.js";
+import { OrbitControls } from "/jsm/controls/OrbitControls";
+import { GLTFLoader } from "/jsm/loaders/GLTFLoader";
+import Stats from "/jsm/libs/stats.module";
+import { GUI } from "/jsm/libs/dat.gui.module";
+import { TWEEN } from "/jsm/libs/tween.module.min";
+const socket = io();
+socket.on("newGame", function () {
+    console.log("newGame");
+});
+//console.log(io);
+//const socket = io("https://warm-ocean-38118.herokuapp.com");
 const scene = new THREE.Scene();
 const axesHelper = new THREE.AxesHelper(5);
 scene.add(axesHelper);
@@ -51,7 +57,7 @@ let animationActions = new Array();
 let activeAction;
 let lastAction;
 const gltfLoader = new GLTFLoader();
-gltfLoader.load('models/xbot.glb', (gltf) => {
+gltfLoader.load("models/xbot.glb", (gltf) => {
     gltf.scene.traverse(function (child) {
         if (child.isMesh) {
             let m = child;
@@ -68,20 +74,20 @@ gltfLoader.load('models/xbot.glb', (gltf) => {
     scene.add(gltf.scene);
     modelMesh = gltf.scene;
     //add an animation from another file
-    gltfLoader.load('models/runForward.glb', (gltf) => {
+    gltfLoader.load("models/runForward.glb", (gltf) => {
         console.log("loaded runForward");
         gltf.animations[0].tracks.shift();
         let animationAction = mixer.clipAction(gltf.animations[0]);
         animationActions.push(animationAction);
         animationsFolder.add(animations, "runForward");
         //add an animation from another file
-        gltfLoader.load('models/dance.glb', (gltf) => {
+        gltfLoader.load("models/dance.glb", (gltf) => {
             console.log("loaded dance");
             let animationAction = mixer.clipAction(gltf.animations[0]);
             animationActions.push(animationAction);
             animationsFolder.add(animations, "dance");
             //add an animation from another file
-            gltfLoader.load('models/jump.glb', (gltf) => {
+            gltfLoader.load("models/jump.glb", (gltf) => {
                 console.log("loaded jump");
                 gltf.animations[0].tracks.shift(); //delete the specific track that moves the object forward while running
                 let animationAction = mixer.clipAction(gltf.animations[0]);
@@ -89,26 +95,26 @@ gltfLoader.load('models/xbot.glb', (gltf) => {
                 animationsFolder.add(animations, "jump");
                 modelReady = true;
             }, (xhr) => {
-                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+                console.log((xhr.loaded / xhr.total) * 100 + "% loaded");
             }, (error) => {
                 console.log(error);
             });
         }, (xhr) => {
-            console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+            console.log((xhr.loaded / xhr.total) * 100 + "% loaded");
         }, (error) => {
             console.log(error);
         });
     }, (xhr) => {
-        console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+        console.log((xhr.loaded / xhr.total) * 100 + "% loaded");
     }, (error) => {
         console.log(error);
     });
 }, (xhr) => {
-    console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+    console.log((xhr.loaded / xhr.total) * 100 + "% loaded");
 }, (error) => {
     console.log(error);
 });
-window.addEventListener('resize', onWindowResize, false);
+window.addEventListener("resize", onWindowResize, false);
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -117,11 +123,11 @@ function onWindowResize() {
 }
 const raycaster = new THREE.Raycaster();
 const targetQuaternion = new THREE.Quaternion();
-renderer.domElement.addEventListener('dblclick', onDoubleClick, false);
+renderer.domElement.addEventListener("dblclick", onDoubleClick, false);
 function onDoubleClick(event) {
     const mouse = {
         x: (event.clientX / renderer.domElement.clientWidth) * 2 - 1,
-        y: -(event.clientY / renderer.domElement.clientHeight) * 2 + 1
+        y: -(event.clientY / renderer.domElement.clientHeight) * 2 + 1,
     };
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObjects(sceneMeshes, false);
@@ -138,8 +144,8 @@ function onDoubleClick(event) {
             .to({
             x: p.x,
             y: p.y,
-            z: p.z
-        }, 1000 / 2 * distance) /// 2 * distance) //walks 2 meters a second * the distance
+            z: p.z,
+        }, (1000 / 2) * distance) /// 2 * distance) //walks 2 meters a second * the distance
             .onUpdate(() => {
             controls.target.set(modelMesh.position.x, modelMesh.position.y + 1, modelMesh.position.z);
             light1.target = modelMesh;
@@ -174,9 +180,9 @@ const setAction = (toAction) => {
         lastAction = activeAction;
         activeAction = toAction;
         //lastAction.stop()
-        lastAction.fadeOut(.2);
+        lastAction.fadeOut(0.2);
         activeAction.reset();
-        activeAction.fadeIn(.2);
+        activeAction.fadeIn(0.2);
         activeAction.play();
     }
 };
